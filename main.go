@@ -20,12 +20,12 @@ func main() {
 	}
 	dict.Fprint(os.Stderr)
 
-	in, final := dict.nextIn()
+	in, final := dict.Enter()
 	if final {
 		fmt.Println("FINAL")
 		return
 	}
-	out, unbounded := dict.nextOut(in)
+	out, unbounded := dict.Leave(in)
 	if unbounded {
 		fmt.Println("UNBOUNDED")
 		return
@@ -34,8 +34,8 @@ func main() {
 	fmt.Println(dict.NonBasic[in])
 	fmt.Println(dict.Basic[out])
 	dict = dict.Pivot(in, out)
-	fmt.Println(dict.D)
 	dict.Fprint(os.Stderr)
+	fmt.Println(dict.D)
 
 	//	d := new(Dictionary)
 	//	d.Basic = []int{4, 5, 6}
@@ -53,17 +53,11 @@ func main() {
 	//	fmt.Println(d)
 }
 
-type LP struct {
-	C    []float64
-	Ineq []Inequality
-}
-
-type Inequality struct {
-	A []float64
-	B float64
-}
-
-type Affine struct {
-	A []float64
-	B float64
+func loadDict(fname string) (*Dictionary, error) {
+	file, err := os.Open(fname)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return ReadDictFrom(file)
 }

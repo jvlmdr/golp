@@ -34,38 +34,60 @@ func NewDict(m, n int) *Dictionary {
 	return d
 }
 
-func (dict *Dictionary) nextIn() (in int, final bool) {
+func (dict *Dictionary) Enter() (enter int, final bool) {
+	// Find variable with lowest index.
+	var (
+		found bool
+		arg   int
+		min   int
+	)
 	for i := range dict.NonBasic {
 		// Must have positive objective coefficient.
 		if dict.C[i] > 0 {
-			return i, false
-		}
-	}
-	return 0, true
-}
-
-func (dict *Dictionary) nextOut(in int) (out int, unbounded bool) {
-	// Find leaving variable.
-	var (
-		arg   int
-		min   float64
-		found bool
-	)
-	for i := range dict.Basic {
-		// Must have negative constraint coefficient.
-		if dict.A[i][in] >= 0 {
-			continue
-		}
-		val := -dict.B[i] / dict.A[i][in]
-		if !found || val < min {
-			arg, min = i, val
-			found = true
+			index := dict.NonBasic[i]
+			if !found || index < min {
+				found = true
+				arg, min = i, index
+			}
 		}
 	}
 	return arg, !found
 }
 
-func (src *Dictionary) Pivot(in, out int) *Dictionary {
+func (dict *Dictionary) Leave(enter int) (leave int, unbounded bool) {
+	// Find leaving variable.
+	var (
+		found    bool
+		arg      int
+		minVal   float64
+		minIndex int
+	)
+	for i := range dict.Basic {
+		// Must have negative constraint coefficient.
+		if dict.A[i][enter] >= 0 {
+			continue
+		}
+		val := -dict.B[i] / dict.A[i][enter]
+		index := dict.Basic[i]
+
+		if found {
+			if val > minVal {
+				continue
+			} else if val == minVal {
+				if index > minIndex {
+					continue
+				}
+			}
+		}
+		found = true
+		arg = i
+		minVal = val
+		minIndex = index
+	}
+	return arg, !found
+}
+
+func (src *Dictionary) Pivot(enter, leave int) *Dictionary {
 	m := len(src.Basic)
 	n := len(src.NonBasic)
 	dst := NewDict(m, n)
@@ -73,39 +95,39 @@ func (src *Dictionary) Pivot(in, out int) *Dictionary {
 	// Copy the variable indices.
 	copy(dst.Basic, src.Basic)
 	copy(dst.NonBasic, src.NonBasic)
-	// Swap in and out variables.
-	dst.Basic[out] = src.NonBasic[in]
-	dst.NonBasic[in] = src.Basic[out]
+	// Swap enter and leave variables.
+	dst.Basic[leave] = src.NonBasic[enter]
+	dst.NonBasic[enter] = src.Basic[leave]
 
-	dst.B[out] = -src.B[out] / src.A[out][in]
-	for j := range dst.A[out] {
-		if j == in {
-			dst.A[out][j] = 1 / src.A[out][in]
+	dst.B[leave] = -src.B[leave] / src.A[leave][enter]
+	for j := range dst.A[leave] {
+		if j == enter {
+			dst.A[leave][j] = 1 / src.A[leave][enter]
 		} else {
-			dst.A[out][j] = -src.A[out][j] / src.A[out][in]
+			dst.A[leave][j] = -src.A[leave][j] / src.A[leave][enter]
 		}
 	}
 
 	for i := range dst.A {
-		if i == out {
+		if i == leave {
 			continue
 		}
-		dst.B[i] = src.B[i] + src.A[i][in]*dst.B[out]
+		dst.B[i] = src.B[i] + src.A[i][enter]*dst.B[leave]
 		for j := range dst.A[i] {
-			if j == in {
-				dst.A[i][j] = src.A[i][in] / src.A[out][j]
+			if j == enter {
+				dst.A[i][j] = src.A[i][enter] / src.A[leave][j]
 			} else {
-				dst.A[i][j] = src.A[i][j] + src.A[i][in]*dst.A[out][j]
+				dst.A[i][j] = src.A[i][j] + src.A[i][enter]*dst.A[leave][j]
 			}
 		}
 	}
 
-	dst.D = src.D + src.C[in]*dst.B[out]
+	dst.D = src.D + src.C[enter]*dst.B[leave]
 	for j := range dst.C {
-		if j == in {
-			dst.C[j] = src.C[in] / src.A[out][j]
+		if j == enter {
+			dst.C[j] = src.C[enter] / src.A[leave][j]
 		} else {
-			dst.C[j] = src.C[j] + src.C[in]*dst.A[out][j]
+			dst.C[j] = src.C[j] + src.C[enter]*dst.A[leave][j]
 		}
 	}
 	return dst
