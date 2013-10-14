@@ -1,4 +1,4 @@
-package main
+package lp
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type Dictionary struct {
+type Dict struct {
 	Basic    []int
 	NonBasic []int
 	// basic = A nonbasic + b
@@ -21,8 +21,8 @@ type Dictionary struct {
 	D float64
 }
 
-func NewDict(m, n int) *Dictionary {
-	d := new(Dictionary)
+func NewDict(m, n int) *Dict {
+	d := new(Dict)
 	d.Basic = make([]int, m)
 	d.NonBasic = make([]int, n)
 	d.A = make([][]float64, m)
@@ -34,7 +34,7 @@ func NewDict(m, n int) *Dictionary {
 	return d
 }
 
-func (dict *Dictionary) Enter() (enter int, final bool) {
+func (dict *Dict) Enter() (enter int, final bool) {
 	// Find variable with lowest index.
 	var (
 		found bool
@@ -54,7 +54,7 @@ func (dict *Dictionary) Enter() (enter int, final bool) {
 	return arg, !found
 }
 
-func (dict *Dictionary) Leave(enter int) (leave int, unbounded bool) {
+func (dict *Dict) Leave(enter int) (leave int, unbounded bool) {
 	// Find leaving variable.
 	var (
 		found    bool
@@ -87,7 +87,7 @@ func (dict *Dictionary) Leave(enter int) (leave int, unbounded bool) {
 	return arg, !found
 }
 
-func (src *Dictionary) Pivot(enter, leave int) *Dictionary {
+func (src *Dict) Pivot(enter, leave int) *Dict {
 	m := len(src.Basic)
 	n := len(src.NonBasic)
 	dst := NewDict(m, n)
@@ -133,7 +133,7 @@ func (src *Dictionary) Pivot(enter, leave int) *Dictionary {
 	return dst
 }
 
-func (dict *Dictionary) longestCoeff(format string) int {
+func (dict *Dict) longestCoeff(format string) int {
 	var n int
 	for _, ai := range dict.A {
 		for _, aij := range ai {
@@ -150,7 +150,7 @@ func (dict *Dictionary) longestCoeff(format string) int {
 	return n
 }
 
-func (dict *Dictionary) longestIndex(format string) int {
+func (dict *Dict) longestIndex(format string) int {
 	var n int
 	for _, ni := range dict.Basic {
 		n = max(n, len(fmt.Sprintf(format, ni)))
@@ -161,7 +161,7 @@ func (dict *Dictionary) longestIndex(format string) int {
 	return n
 }
 
-func (dict *Dictionary) Fprint(w io.Writer) error {
+func (dict *Dict) Fprint(w io.Writer) error {
 	coeffLen := dict.longestCoeff("%+-.2g")
 	coeff := "%+-" + fmt.Sprintf("%d", coeffLen) + ".2g"
 	indexLen := dict.longestIndex("%d")
@@ -230,7 +230,7 @@ func readLine(scanner *bufio.Scanner) error {
 	return nil
 }
 
-func ReadDictFrom(r io.Reader) (*Dictionary, error) {
+func ReadDictFrom(r io.Reader) (*Dict, error) {
 	scanner := bufio.NewScanner(r)
 
 	// First line contains dimensions.
@@ -312,5 +312,5 @@ func ReadDictFrom(r io.Reader) (*Dictionary, error) {
 	}
 	d, c := obj[0], obj[1:]
 
-	return &Dictionary{basic, nonbasic, a, b, c, d}, nil
+	return &Dict{basic, nonbasic, a, b, c, d}, nil
 }

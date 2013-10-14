@@ -1,4 +1,4 @@
-package main
+package lp
 
 func min(a, b int) int {
 	if b < a {
