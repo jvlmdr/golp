@@ -101,3 +101,38 @@ func (src *Dict) Pivot(enter, leave int) *Dict {
 	}
 	return dst
 }
+
+// Creates a dictionary describing the feasibility problem.
+func FeasDict(infeas *Dict) *Dict {
+	m, n := len(infeas.Basic), len(infeas.NonBasic)
+	// Add a new non-basic variable.
+	dict := NewDict(m, n+1)
+
+	// Copy constraints.
+	copy(dict.Basic, infeas.Basic)
+	copy(dict.NonBasic, infeas.NonBasic)
+	for i := 0; i < m; i++ {
+		copy(dict.A[i], infeas.A[i])
+	}
+	copy(dict.B, infeas.B)
+
+	// Add new non-basic variable (with label 0) to all rows.
+	for i := 0; i < m; i++ {
+		dict.A[i][n] = 1
+	}
+	// Goal is to minimize this new variable.
+	dict.C[n] = -1
+
+	leave := findMin(dict.B)
+	return dict.Pivot(n, leave)
+}
+
+func findMin(vals []float64) int {
+	var arg int
+	for i, v := range vals {
+		if v < vals[arg] {
+			arg = i
+		}
+	}
+	return arg
+}
