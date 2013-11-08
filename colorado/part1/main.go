@@ -3,84 +3,100 @@ package main
 import (
 	"github.com/jackvalmadre/golp/lp"
 
+	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
-	"path"
 )
 
 func main() {
-	const (
-		dir = "files"
-		n   = 5
+	var (
+		refFile string
+		outFile string
 	)
+	flag.StringVar(&refFile, "ref", "", "File containing desired solution")
+	flag.StringVar(&outFile, "out", "", "File to contain output")
 
-	for i := 1; i <= n; i++ {
-		fmt.Printf("case %d:\n", i)
-
-		dictFile := path.Join(dir, fmt.Sprintf("part%d.dict", i))
-		solnFile := path.Join(dir, fmt.Sprintf("part%d.output", i))
-
-		dict, err := loadDict(dictFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		if err := pivotToFile(dict, solnFile); err != nil {
-			log.Print(err)
-		}
+	flag.Parse()
+	if flag.NArg() != 1 {
+		flag.Usage()
+		os.Exit(1)
 	}
-}
+	dictFile := flag.Arg(0)
 
-func pivotToFile(dict *lp.Dict, fname string) error {
-	file, err := os.Create(fname)
+	// Load input dictionary.
+	dict := new(lp.Dict)
+	err := Load(lp.ReadDictFrom, dictFile, dict)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	defer file.Close()
-	return pivot(dict, file)
+
+	// Make the pivot.
+	var soln Solution
+	piv := lp.NextBland(dict)
+	if piv.Unbounded {
+		// The initial dictionary was unbounded.
+		soln.Unbounded = true
+	} else {
+		if piv.Final {
+			// The initial dictionary was final.
+			soln.Final = true
+		} else {
+			// Possible to make a pivot.
+			soln.Enter = dict.NonBasic[piv.Enter]
+			soln.Leave = dict.Basic[piv.Leave]
+			soln.Dict = dict.Pivot(piv.Enter, piv.Leave)
+		}
+	}
+
+	if refFile != "" {
+		// Load reference output.
+		var ref Summary
+		if err := Load(ReadSummaryFrom, refFile, &ref); err != nil {
+			log.Fatalln("could not load reference summary:", err)
+		}
+
+		// Compare.
+		ok := check(soln, ref)
+		if !ok {
+			log.Fatal("fail")
+		}
+		log.Print("pass")
+	}
+
+	if outFile != "" {
+		// Save dictionary out.
+		if err := Save(WriteSolutionTo, outFile, soln); err != nil {
+			log.Fatalln("could not save solution")
+		}
+	}
 }
 
-func pivot(dict *lp.Dict, w io.Writer) error {
-	// Get entering variable, check final.
-	enter, final := dict.Enter()
-	if final {
-		if _, err := fmt.Fprintln(w, "FINAL"); err != nil {
-			return err
+func check(soln Solution, ref Summary) bool {
+	// First check unbounded.
+	if ref.Unbounded || soln.Unbounded {
+		if ref.Unbounded != soln.Unbounded {
+			log.Printf("unbounded: want %v, got %v", ref.Unbounded, soln.Unbounded)
+			return false
+		} else {
+			return true
 		}
-		return nil
 	}
 
-	// Get leaving variable, check unbounded.
-	leave, unbounded := dict.Leave(enter)
-	if unbounded {
-		if _, err := fmt.Fprintln(w, "UNBOUNDED"); err != nil {
-			return err
-		}
-		return nil
+	// Otherwise check pivot indices.
+	if ref.Enter != soln.Enter || ref.Leave != soln.Leave {
+		log.Printf(
+			"pivot: want %d enter and %d leave, got %d enter and %d leave",
+			ref.Enter, ref.Leave, soln.Enter, soln.Leave,
+		)
+		return false
 	}
 
-	if _, err := fmt.Fprintln(w, dict.NonBasic[enter]); err != nil {
-		return err
+	refObj := fmt.Sprintf("%.2f", ref.Objective)
+	solnObj := fmt.Sprintf("%.2f", soln.Dict.Obj())
+	if refObj != solnObj {
+		log.Printf("objective: want %s, got %s", refObj, solnObj)
+		return false
 	}
-	if _, err := fmt.Fprintln(w, dict.Basic[leave]); err != nil {
-		return err
-	}
-
-	dict = dict.Pivot(enter, leave)
-
-	if _, err := fmt.Fprintln(w, dict.D); err != nil {
-		return err
-	}
-	return nil
-}
-
-func loadDict(fname string) (*lp.Dict, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return lp.ReadDictFrom(file)
+	return true
 }
