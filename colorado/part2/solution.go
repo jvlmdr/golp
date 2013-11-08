@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -44,4 +45,21 @@ func ReadSolutionFrom(r io.Reader) (Solution, error) {
 
 	soln := Solution{Value: value, Steps: int(steps)}
 	return soln, nil
+}
+
+func WriteSolutionTo(w io.Writer, soln Solution) error {
+	if soln.Unbounded {
+		if _, err := fmt.Fprintln(w, "UNBOUNDED"); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if _, err := fmt.Fprintln(w, soln.Value); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, soln.Steps); err != nil {
+		return err
+	}
+	return nil
 }

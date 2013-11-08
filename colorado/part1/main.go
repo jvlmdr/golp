@@ -26,7 +26,7 @@ func main() {
 
 	// Load input dictionary.
 	dict := new(lp.Dict)
-	err := Load(lp.ReadDictFrom, dictFile, dict)
+	err := Load(lp.ReadDictColoradoFrom, dictFile, dict)
 	if err != nil {
 		log.Fatal(err)
 	}

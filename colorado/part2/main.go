@@ -3,124 +3,102 @@ package main
 import (
 	"github.com/jackvalmadre/golp/lp"
 
+	"flag"
 	"fmt"
-	"io"
 	"log"
 	"math"
 	"os"
-	"path"
 )
 
 func main() {
-	const (
-		dir = "files"
-		n   = 5
+	var (
+		refFile string
+		outFile string
 	)
+	flag.StringVar(&refFile, "ref", "", "File containing desired solution")
+	flag.StringVar(&outFile, "out", "", "File to contain output")
 
-	for i := 1; i <= n; i++ {
-		fmt.Printf("case %d:\n", i)
-
-		// Load dictionary and solution.
-		dictFile := path.Join(dir, fmt.Sprintf("part%d.dict", i))
-		dict, err := loadDict(dictFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		soln := solve(dict)
-
-		solnFile := path.Join(dir, fmt.Sprintf("part%d.output", i))
-		if err := saveSolutionTo(solnFile, soln); err != nil {
-			log.Fatal(err)
-		}
+	flag.Parse()
+	if flag.NArg() != 1 {
+		flag.Usage()
+		os.Exit(1)
 	}
-}
+	dictFile := flag.Arg(0)
 
-func solve(dict *lp.Dict) Solution {
-	for k := 0; ; k++ {
-		// Get entering variable, check final.
-		enter, final := dict.Enter()
-		if final {
-			return Solution{Value: dict.D, Steps: k}
-		}
-
-		// Get leaving variable, check unbounded.
-		leave, unbounded := dict.Leave(enter)
-		if unbounded {
-			return Solution{Unbounded: true}
-		}
-
-		// Make the pivot.
-		dict = dict.Pivot(enter, leave)
-	}
-}
-
-func saveSolutionTo(fname string, soln Solution) error {
-	file, err := os.Create(fname)
+	// Load input dictionary.
+	dict := new(lp.Dict)
+	err := Load(lp.ReadDictColoradoFrom, dictFile, dict)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
-	defer file.Close()
-	return writeSolutionTo(file, soln)
-}
 
-func writeSolutionTo(w io.Writer, soln Solution) error {
-	if soln.Unbounded {
-		if _, err := fmt.Fprintln(w, "UNBOUNDED"); err != nil {
-			return err
+	// Pivot all the way.
+	var iter int
+	var unbounded bool
+	for {
+		piv := lp.NextBland(dict)
+		if piv.Unbounded {
+			unbounded = true
+			fmt.Println("unbounded")
+			break
 		}
-		return nil
+		if piv.Final {
+			fmt.Println("final")
+			break
+		}
+		dict = dict.Pivot(piv.Enter, piv.Leave)
+		iter++
+		fmt.Printf("%4d  f:%10.3e\n", iter, dict.Obj())
 	}
 
-	if _, err := fmt.Fprintln(w, soln.Value); err != nil {
-		return err
+	var result Solution
+	if unbounded {
+		result = Solution{Unbounded: true}
+	} else {
+		result = Solution{Value: dict.Obj(), Steps: iter}
 	}
-	if _, err := fmt.Fprintln(w, soln.Steps); err != nil {
-		return err
+
+	if refFile != "" {
+		// Load reference output.
+		var ref Solution
+		if err := Load(ReadSolutionFrom, refFile, &ref); err != nil {
+			log.Fatalln("could not load reference:", err)
+		}
+
+		// Compare.
+		if err := check(result, ref); err != nil {
+			log.Println("fail:", err)
+		}
+		log.Print("pass")
 	}
-	return nil
+
+	if outFile != "" {
+		// Save dictionary out.
+		if err := Save(WriteSolutionTo, outFile, result); err != nil {
+			log.Fatalln("could not save solution")
+		}
+	}
 }
 
-func test(dict *lp.Dict, soln Solution, eps float64) error {
-	result := solve(dict)
+func check(result, ref Solution) error {
+	const eps = 0.1
 
-	if result.Unbounded != soln.Unbounded {
-		return fmt.Errorf("wrong: unbounded: got %v, want %v", result.Unbounded, soln.Unbounded)
-	}
-	if soln.Unbounded {
-		return nil
+	if result.Unbounded || ref.Unbounded {
+		if result.Unbounded != ref.Unbounded {
+			return fmt.Errorf("unbounded: got %v, want %v", result.Unbounded, ref.Unbounded)
+		} else {
+			// Both are true.
+			return nil
+		}
 	}
 
 	// Check objective value.
-	if !approx(result.Value, soln.Value, eps) {
-		return fmt.Errorf("wrong objective: got %g, want %g", result.Value, soln.Value)
+	if math.Abs(result.Value-ref.Value) >= eps {
+		return fmt.Errorf("objective: got %g, want %g", result.Value, ref.Value)
 	}
-
 	// Check number of steps.
-	if result.Steps != soln.Steps {
-		return fmt.Errorf("wrong number of steps: got %d, want %d", result.Steps, soln.Steps)
+	if result.Steps != ref.Steps {
+		return fmt.Errorf("number of steps: got %d, want %d", result.Steps, ref.Steps)
 	}
 	return nil
-}
-
-func approx(got, want, eps float64) bool {
-	return math.Abs(got-want) <= eps*math.Abs(want)
-}
-
-func loadSoln(fname string) (Solution, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return Solution{}, err
-	}
-	defer file.Close()
-	return ReadSolutionFrom(file)
-}
-
-func loadDict(fname string) (*lp.Dict, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	return lp.ReadDictFrom(file)
 }
