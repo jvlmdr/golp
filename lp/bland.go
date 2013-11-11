@@ -2,7 +2,7 @@ package lp
 
 // Finds index (not label) of next non-basic variable to enter
 // under Bland's rule.
-func ToEnterBland(dict *Dict) (enter int, final bool) {
+func toEnterBland(dict *Dict, eps float64) (enter int, final bool) {
 	// Find variable with lowest index.
 	var (
 		found bool
@@ -13,7 +13,7 @@ func ToEnterBland(dict *Dict) (enter int, final bool) {
 	// Find lowest-index variable with positive objective coefficient.
 	for i := range dict.NonBasic {
 		// Must have positive objective coefficient.
-		if dict.C[i] <= 0 {
+		if dict.C[i] <= eps {
 			continue
 		}
 
@@ -65,8 +65,14 @@ func toLeaveBland(dict *Dict, enter int) (leave int, unbound bool) {
 	return arg, !found
 }
 
+// Returns the next pivot operation to perform according to Bland's rule.
+// No pivot operation is possible if the dictionary is final or unbounded.
 func NextBland(dict *Dict) Pivot {
-	enter, final := ToEnterBland(dict)
+	return NextBlandEps(dict, DefaultEps)
+}
+
+func NextBlandEps(dict *Dict, eps float64) Pivot {
+	enter, final := toEnterBland(dict, eps)
 	if final {
 		return Pivot{Final: true}
 	}
@@ -77,38 +83,37 @@ func NextBland(dict *Dict) Pivot {
 	return Pivot{Enter: enter, Leave: leave}
 }
 
+// Returns the next pivot operation to perform according to Bland's rule
+// for a feasibility problem.
+// This treats the variable with label 0 as a special variable
+// which receives priority to leave the basic set.
 func NextFeasBland(dict *Dict) Pivot {
+	return NextFeasBlandEps(dict, DefaultEps)
+}
+
+func NextFeasBlandEps(dict *Dict, eps float64) Pivot {
 	// First check if there is a variable with label 0 in the basic set.
-	zero, foundZero := findZero(dict.Basic)
-	if foundZero {
+	zero, found := findZero(dict.Basic)
+	if found {
 		// If there is and it can leave the basic set, make this pivot.
 		enter, canLeave := toEnterFeasBland(dict, zero)
 		if canLeave {
 			return Pivot{Enter: enter, Leave: zero}
 		}
 	}
-
-	return NextBland(dict)
+	return NextBlandEps(dict, eps)
 }
 
-func findZero(labels []int) (idx int, found bool) {
-	for i, lbl := range labels {
-		if lbl == 0 {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
+// Returns the non-basic variable to enter if the given variable were to leave.
+// There may not exist such a non-basic variable.
 func toEnterFeasBland(dict *Dict, leave int) (enter int, found bool) {
-	// Find variable with lowest index which can enter.
-
+	// Find min-label non-basic variable
+	// which would choose the given basic variable to pivot with.
 	var (
 		arg int
 		min int
 	)
 
-	// Find lowest-index variable with positive objective coefficient.
 	for j := range dict.NonBasic {
 		// Must have positive objective coefficient.
 		if dict.C[j] <= 0 {
@@ -131,6 +136,5 @@ func toEnterFeasBland(dict *Dict, leave int) (enter int, found bool) {
 			}
 		}
 	}
-
 	return arg, found
 }

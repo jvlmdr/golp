@@ -36,8 +36,8 @@ func (dict *Dict) longestIndex(format string) int {
 }
 
 func (dict *Dict) Fprint(w io.Writer) error {
-	coeffLen := dict.longestCoeff("%+-.2g")
-	coeff := "%+-" + fmt.Sprintf("%d", coeffLen) + ".2g"
+	coeffLen := dict.longestCoeff("%+-.4g")
+	coeff := "%+-" + fmt.Sprintf("%d", coeffLen) + ".4g"
 	indexLen := dict.longestIndex("%d")
 	index := "%" + fmt.Sprintf("%d", indexLen) + "d"
 

@@ -1,5 +1,7 @@
 package lp
 
+var DefaultEps = 1e-9
+
 type Dict struct {
 	Basic    []int
 	NonBasic []int
@@ -11,6 +13,7 @@ type Dict struct {
 	D float64
 }
 
+// Creates a dictionary with m basic and n non-basic variables.
 func NewDict(m, n int) *Dict {
 	d := new(Dict)
 	d.Basic = make([]int, m)
@@ -44,8 +47,14 @@ func (dict *Dict) Obj() float64 {
 
 // Is the (solution associated with the) dictionary feasible?
 func (dict *Dict) Feas() bool {
+	return dict.FeasEps(DefaultEps)
+}
+
+func (dict *Dict) FeasEps(eps float64) bool {
+	// Infeasible if any of the basic variables are less than zero.
 	for _, bi := range dict.B {
-		if bi < 0 {
+		// Let them be very small and negative.
+		if bi < -eps {
 			return false
 		}
 	}
@@ -103,7 +112,9 @@ func (src *Dict) Pivot(enter, leave int) *Dict {
 }
 
 // Creates a dictionary describing the feasibility problem.
-func FeasDict(infeas *Dict) *Dict {
+// Adds a variable with label 0 to the basic set,
+// then pivots it into the non-basic set.
+func ToFeasDict(infeas *Dict) *Dict {
 	m, n := len(infeas.Basic), len(infeas.NonBasic)
 	// Add a new non-basic variable.
 	dict := NewDict(m, n+1)
@@ -127,12 +138,52 @@ func FeasDict(infeas *Dict) *Dict {
 	return dict.Pivot(n, leave)
 }
 
-func findMin(vals []float64) int {
-	var arg int
-	for i, v := range vals {
-		if v < vals[arg] {
-			arg = i
+// Returns to original problem.
+// Removes the variable with label 0,
+// which must be in the non-basic set.
+func FromFeasDict(feas *Dict, orig *Dict) *Dict {
+	m, n := len(feas.Basic), len(feas.NonBasic)-1
+
+	// Remove extra variable.
+	// Must be non-basic.
+	zero, found := findZero(feas.NonBasic)
+	if !found {
+		panic("extra variable not in non-basic set")
+	}
+
+	dict := NewDict(m, n)
+	// Copy constraints.
+	copy(dict.Basic, feas.Basic)
+	copy(dict.NonBasic[:zero], feas.NonBasic[:zero])
+	copy(dict.NonBasic[zero:], feas.NonBasic[zero+1:])
+	for i := 0; i < m; i++ {
+		copy(dict.A[i][:zero], feas.A[i][:zero])
+		copy(dict.A[i][zero:], feas.A[i][zero+1:])
+	}
+	copy(dict.B, feas.B)
+
+	// Re-express original objective in terms of current basic set.
+	// This could be done succinctly with matrix operations?
+	dict.D = orig.D
+	for u, lbl1 := range orig.NonBasic {
+		c := orig.C[u]
+		for j, lbl2 := range dict.NonBasic {
+			if lbl1 != lbl2 {
+				continue
+			}
+			// Simply transfer coefficient.
+			dict.C[j] += c
+		}
+		for i, lbl2 := range dict.Basic {
+			if lbl1 != lbl2 {
+				continue
+			}
+			// Transfer coefficients for basic variable.
+			dict.D += c * dict.B[i]
+			for j := range dict.NonBasic {
+				dict.C[j] += c * dict.A[i][j]
+			}
 		}
 	}
-	return arg
+	return dict
 }
