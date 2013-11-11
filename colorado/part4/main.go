@@ -32,7 +32,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	result := solve(dict)
+	const epsInt = 1e-3
+	lp.DefaultEps = 1e-6
+
+	result := solve(dict, epsInt)
+
+	if outFile != "" {
+		// Save dictionary out.
+		if err := Save(WriteSolutionTo, outFile, result); err != nil {
+			log.Fatalln("could not save solution")
+		}
+		log.Print("done")
+	}
 
 	if refFile != "" {
 		// Load reference output.
@@ -42,22 +53,14 @@ func main() {
 		}
 
 		// Compare.
-		if err := check(result, ref); err != nil {
+		if err := check(result, ref, epsInt); err != nil {
 			log.Fatalln("fail:", err)
 		}
 		log.Print("pass")
 	}
-
-	//	if outFile != "" {
-	//		// Save dictionary out.
-	//		if err := Save(WriteSolutionTo, outFile, result); err != nil {
-	//			log.Fatalln("could not save solution")
-	//		}
-	//		log.Print("done")
-	//	}
 }
 
-func solve(dict *lp.Dict) Solution {
+func solve(dict *lp.Dict, epsInt float64) Solution {
 	if !dict.Feas() {
 		log.Println("init. dict. not feasible: solve feas. problem")
 		// Solve the feasibility problem.
@@ -73,61 +76,82 @@ func solve(dict *lp.Dict) Solution {
 		log.Println("init. dict. feasible")
 	}
 
-	var dual bool
-	for {
-		// Solve.
-		log.Println("solve")
-		var unbnd bool
-		dict, unbnd = lp.Solve(dict)
-		if unbnd {
-			// Relaxation became unbounded.
-			if dual {
-				log.Println("dual is unbounded (primal infeasible)")
-				return Solution{Infeas: true}
-			} else {
-				log.Println("primal is unbounded")
-				return Solution{Unbnd: true}
-			}
-		}
+	log.Println("solve")
+	var unbnd bool
+	dict, unbnd = lp.Solve(dict)
+	if unbnd {
+		// Relaxation became unbounded.
+		log.Println("primal is unbounded")
+		return Solution{Unbnd: true}
+	}
 
-		// If the problem we just solved was the dual,
-		// revert to the primal.
-		if dual {
-			dict = dict.Dual()
-			dual = !dual
-		}
-
-		dict.Fprint(os.Stdout)
-		fmt.Println()
-		if dict.IsInt() {
-			break
-		}
+	for !dict.IsIntEps(epsInt) {
+		fmt.Printf("primal objective coeffs: %.4g\n", dict.C)
 
 		// Check if integer solution.
 		log.Println("add cutting-plane constraints")
 		dict = lp.CutPlane(dict)
 		log.Println("feasible?", dict.Feas())
 
-		log.Println("switch to dual of dictionary")
+		log.Println("switch to dual")
 		dict = dict.Dual()
-		dual = !dual
 		log.Println("feasible?", dict.Feas())
-	}
 
-	// Dual of the dual is the primal.
-	if dual {
+		log.Println("solve")
+		var unbnd bool
+		dict, unbnd = lp.Solve(dict)
+		if unbnd {
+			// Dual of relaxation became unbounded.
+			log.Println("dual is unbounded (primal infeasible)")
+			return Solution{Infeas: true}
+		}
+
+		log.Println("feasible?", dict.Feas())
+
+		log.Println("switch to primal")
 		dict = dict.Dual()
-		dual = !dual
-	}
+		log.Println("objective:", dict.Obj())
 
-	dict.Fprint(os.Stdout)
-	fmt.Println()
+		//	// Find a feasible solution.
+		//	var infeas bool
+		//	log.Println("solve feasibility problem")
+		//	dict, infeas = lp.SolveFeas(dict)
+		//	if infeas {
+		//		// Continuous relaxation is infeasible,
+		//		// therefore integer problem is infeasible.
+		//		log.Println("primal is infeasible")
+		//		return Solution{Infeas: true}
+		//	}
+
+		//	var unbnd bool
+		//	log.Println("solve problem")
+		//	dict, unbnd = lp.Solve(dict)
+		//	if unbnd {
+		//		// Relaxation became unbounded.
+		//		log.Println("primal is unbounded")
+		//		return Solution{Unbnd: true}
+		//	}
+	}
 
 	return Solution{Obj: dict.Obj()}
 }
 
-func check(result, ref Solution) error {
-	const eps = 1e-6
+func check(result, ref Solution, eps float64) error {
+	if result.Infeas || ref.Infeas {
+		if result.Infeas == ref.Infeas {
+			// Success.
+			return nil
+		}
+		return fmt.Errorf("infeasible: got %v, want %v", result.Infeas, ref.Infeas)
+	}
+
+	if result.Unbnd || ref.Unbnd {
+		if result.Unbnd == ref.Unbnd {
+			// Success.
+			return nil
+		}
+		return fmt.Errorf("unbounded: got %v, want %v", result.Unbnd, ref.Unbnd)
+	}
 
 	// Check objective value.
 	if math.Abs(result.Obj-ref.Obj) >= eps {

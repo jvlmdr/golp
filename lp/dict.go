@@ -1,5 +1,7 @@
 package lp
 
+import "log"
+
 var DefaultEps = 1e-9
 
 type Dict struct {
@@ -73,6 +75,12 @@ func (src *Dict) Pivot(enter, leave int) *Dict {
 	// Swap variables to enter and leave.
 	dst.Basic[leave] = src.NonBasic[enter]
 	dst.NonBasic[enter] = src.Basic[leave]
+
+	log.Printf(
+		"pivot: enter %d, leave %d, obj coeff %.4g, basic coeff %.4g",
+		src.NonBasic[enter], src.Basic[leave],
+		src.C[enter], src.A[leave][enter],
+	)
 
 	// Update row of basic variable.
 	dst.B[leave] = -src.B[leave] / src.A[leave][enter]

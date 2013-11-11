@@ -68,7 +68,7 @@ func main() {
 
 		// Compare.
 		if err := check(result, ref); err != nil {
-			log.Println("fail:", err)
+			log.Fatalln("fail:", err)
 		}
 		log.Print("pass")
 	}

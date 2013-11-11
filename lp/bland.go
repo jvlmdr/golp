@@ -30,7 +30,7 @@ func toEnterBland(dict *Dict, eps float64) (enter int, final bool) {
 // under Bland's rule given non-basic variable to enter.
 //
 // Assumes that dictionary is feasible.
-func toLeaveBland(dict *Dict, enter int) (leave int, unbound bool) {
+func toLeaveBland(dict *Dict, enter int, eps float64) (leave int, unbound bool) {
 	var (
 		found  bool
 		arg    int
@@ -42,7 +42,7 @@ func toLeaveBland(dict *Dict, enter int) (leave int, unbound bool) {
 	// If two choices result in the same change, the lower label must be preferred.
 	for i := range dict.Basic {
 		// Must have negative constraint coefficient.
-		if dict.A[i][enter] >= 0 {
+		if dict.A[i][enter] >= -eps {
 			continue
 		}
 		val := -dict.B[i] / dict.A[i][enter]
@@ -76,7 +76,7 @@ func NextBlandEps(dict *Dict, eps float64) Pivot {
 	if final {
 		return Pivot{Final: true}
 	}
-	leave, unbound := toLeaveBland(dict, enter)
+	leave, unbound := toLeaveBland(dict, enter, eps)
 	if unbound {
 		return Pivot{Unbounded: true}
 	}
@@ -96,7 +96,7 @@ func NextFeasBlandEps(dict *Dict, eps float64) Pivot {
 	zero, found := findZero(dict.Basic)
 	if found {
 		// If there is and it can leave the basic set, make this pivot.
-		enter, canLeave := toEnterFeasBland(dict, zero)
+		enter, canLeave := toEnterFeasBland(dict, zero, eps)
 		if canLeave {
 			return Pivot{Enter: enter, Leave: zero}
 		}
@@ -106,7 +106,7 @@ func NextFeasBlandEps(dict *Dict, eps float64) Pivot {
 
 // Returns the non-basic variable to enter if the given variable were to leave.
 // There may not exist such a non-basic variable.
-func toEnterFeasBland(dict *Dict, leave int) (enter int, found bool) {
+func toEnterFeasBland(dict *Dict, leave int, eps float64) (enter int, found bool) {
 	// Find min-label non-basic variable
 	// which would choose the given basic variable to pivot with.
 	var (
@@ -116,13 +116,13 @@ func toEnterFeasBland(dict *Dict, leave int) (enter int, found bool) {
 
 	for j := range dict.NonBasic {
 		// Must have positive objective coefficient.
-		if dict.C[j] <= 0 {
+		if dict.C[j] <= eps {
 			continue
 		}
 
 		// Find leaving variable.
 		// Element with minimum label chosen preferentially.
-		i, unbnd := toLeaveBland(dict, j)
+		i, unbnd := toLeaveBland(dict, j, eps)
 		if unbnd {
 			continue
 		}

@@ -1,9 +1,8 @@
 package lp
 
-import (
-	"math"
-)
+import "math"
 
+// Does the dictionary represent an integer solution?
 func (dict *Dict) IsInt() bool {
 	return dict.IsIntEps(DefaultEps)
 }
