@@ -1,6 +1,56 @@
 package lp
 
-import "math"
+import (
+	"fmt"
+	"log"
+	"math"
+)
+
+func SolveInt(dict *Dict) (final *Dict, err error) {
+	return SolveIntEps(dict, DefaultEps)
+}
+
+func SolveIntEps(dict *Dict, eps float64) (final *Dict, err error) {
+	if !dict.Feas() {
+		// Solve the feasibility problem.
+		var infeas bool
+		dict, infeas = SolveFeasEps(dict, eps)
+		if infeas {
+			// Continuous relaxation is infeasible,
+			// therefore integer problem is infeasible.
+			return nil, fmt.Errorf("real problem is infeasible")
+		}
+	}
+
+	// Solve problem without integer constraints.
+	var unbnd bool
+	dict, unbnd = SolveEps(dict, eps)
+	if unbnd {
+		// Relaxation became unbounded.
+		return nil, fmt.Errorf("unbounded in primal")
+	}
+
+	for !dict.IsIntEps(eps) {
+		log.Println("add cutting-plane constraints")
+		dict = CutPlaneEps(dict, eps)
+		log.Println("feasible?", dict.Feas())
+		log.Println("switch to dual")
+		dict = dict.Dual()
+		log.Println("feasible?", dict.Feas())
+		var unbnd bool
+		dict, unbnd = SolveEps(dict, eps)
+		if unbnd {
+			// Dual of relaxation became unbounded.
+			log.Println("unbounded in dual, infeasible in primal")
+			return
+		}
+		log.Println("feasible?", dict.Feas())
+		log.Println("switch to primal")
+		dict = dict.Dual()
+		log.Println("objective:", dict.Obj())
+	}
+	return dict, nil
+}
 
 // Does the dictionary represent an integer solution?
 func (dict *Dict) IsInt() bool {
