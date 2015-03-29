@@ -7,7 +7,7 @@ var DefaultEps = 1e-9
 // The problem is
 //	max {D + sum_i C[i] x[NonBasic[i]]}
 //	s.t. x[NonBasic[i]] >= 0
-//	     x[Basic[i]] = B[j] + sum_j A[i][j] x[NonBasic[i]] >= 0.
+//	     x[Basic[i]] = B[i] + sum_j A[i][j] x[NonBasic[i]] >= 0.
 // The variables are partitioned into basic and non-basic sets.
 // The objective and the basic variables are affine functions
 // of the non-basic variables.
