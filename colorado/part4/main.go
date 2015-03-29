@@ -78,7 +78,7 @@ func solve(dict *lp.Dict, epsInt float64) Solution {
 
 	log.Println("solve")
 	var unbnd bool
-	dict, unbnd = lp.Solve(dict)
+	dict, unbnd = lp.PivotToFinal(dict)
 	if unbnd {
 		// Relaxation became unbounded.
 		log.Println("primal is unbounded")
@@ -99,7 +99,7 @@ func solve(dict *lp.Dict, epsInt float64) Solution {
 
 		log.Println("solve")
 		var unbnd bool
-		dict, unbnd = lp.Solve(dict)
+		dict, unbnd = lp.PivotToFinal(dict)
 		if unbnd {
 			// Dual of relaxation became unbounded.
 			log.Println("dual is unbounded (primal infeasible)")
