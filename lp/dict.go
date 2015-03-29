@@ -167,11 +167,12 @@ func ToFeasDict(infeas *Dict) *Dict {
 // Removes the variable with label len(NonBasic)+len(Basic)-1,
 // which must be in the non-basic set.
 func FromFeasDict(feas *Dict, orig *Dict) *Dict {
+	// Size of the original problem.
 	m, n := len(feas.Basic), len(feas.NonBasic)-1
 
 	// Remove extra variable.
 	// Must be non-basic.
-	extra, found := find(m+n-1, feas.NonBasic)
+	extra, found := find(m+n, feas.NonBasic)
 	if !found {
 		panic("extra variable not in non-basic set")
 	}
