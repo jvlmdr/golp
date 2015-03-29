@@ -46,7 +46,7 @@ func readLine(scanner *bufio.Scanner) error {
 	return nil
 }
 
-// Reads a dictionary in the University of Colorado format.
+// ReadDictColoradoFrom reads a dictionary in the University of Colorado format.
 func ReadDictColoradoFrom(r io.Reader) (*Dict, error) {
 	scanner := bufio.NewScanner(r)
 

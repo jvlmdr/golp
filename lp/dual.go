@@ -1,6 +1,6 @@
 package lp
 
-// Returns the corresponding dual dictionary.
+// Dual returns the corresponding dual dictionary.
 //	A, b, c, d = -A', -c, -b, -d
 // Dual variables have the label of their primal complement.
 func (p *Dict) Dual() *Dict {

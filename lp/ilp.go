@@ -6,6 +6,8 @@ import (
 	"math"
 )
 
+// SolveInt solves the linear program with the constraint
+// that all variables take integer values.
 func SolveInt(dict *Dict) (final *Dict, err error) {
 	return SolveIntEps(dict, DefaultEps)
 }
@@ -52,7 +54,7 @@ func SolveIntEps(dict *Dict, eps float64) (final *Dict, err error) {
 	return dict, nil
 }
 
-// Does the dictionary represent an integer solution?
+// IsInt returns true if the dictionary is associated with an integer solution.
 func (dict *Dict) IsInt() bool {
 	return dict.IsIntEps(DefaultEps)
 }
@@ -69,8 +71,8 @@ func (dict *Dict) IsIntEps(eps float64) bool {
 	return true
 }
 
-// Incorporates cutting-plane constraints
-// for all non-integer variables and possibly the objective.
+// CutPlane returns a new dictionary with cutting-plane constraints
+// for non-integer expressions in the basic variables and objective.
 func CutPlane(orig *Dict) *Dict {
 	return CutPlaneEps(orig, DefaultEps)
 }

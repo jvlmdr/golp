@@ -65,7 +65,7 @@ func toLeaveBland(dict *Dict, enter int, eps float64) (leave int, unbound bool) 
 	return arg, !found
 }
 
-// Returns the next pivot operation to perform according to Bland's rule.
+// NextBland returns the next pivot operation to perform according to Bland's rule.
 // No pivot operation is possible if the dictionary is final or unbounded.
 func NextBland(dict *Dict) Pivot {
 	return NextBlandEps(dict, DefaultEps)
@@ -83,9 +83,9 @@ func NextBlandEps(dict *Dict, eps float64) Pivot {
 	return Pivot{Enter: enter, Leave: leave}
 }
 
-// Returns the next pivot operation to perform according to Bland's rule
+// NextFeasBland returns the next pivot operation to perform according to Bland's rule
 // for a feasibility problem.
-// This treats the variable with label 0 as a special variable
+// This treats the variable with label len(NonBasic)+len(Basic)-1 as a special variable
 // which receives priority to leave the basic set.
 func NextFeasBland(dict *Dict) Pivot {
 	return NextFeasBlandEps(dict, DefaultEps)

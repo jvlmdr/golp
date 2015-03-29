@@ -1,6 +1,6 @@
 package lp
 
-// Carries an ordinary primal dictionary to solution.
+// Solve carries a primal dictionary to solution.
 // Assumes that initial dictionary is feasible.
 func Solve(dict *Dict) (final *Dict, unbnd bool) {
 	return SolveEps(dict, DefaultEps)
@@ -27,7 +27,7 @@ func SolveEps(dict *Dict, eps float64) (final *Dict, unbnd bool) {
 	}
 }
 
-// Solves the feasibility problem of a given dictionary.
+// SolveFeas solves the feasibility problem of a given dictionary.
 // If feasible, returns a feasible dictionary of the original problem.
 // Assumes that the original dictionary is infeasible.
 func SolveFeas(dict *Dict) (final *Dict, infeas bool) {
