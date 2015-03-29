@@ -36,7 +36,7 @@ func main() {
 	fmt.Println("feas?", dict.Feas())
 	fmt.Println()
 
-	dict = lp.FeasDict(dict)
+	dict = lp.ToFeasDict(dict)
 	dict.Fprint(os.Stdout)
 	fmt.Println("feas?", dict.Feas())
 	fmt.Println()
