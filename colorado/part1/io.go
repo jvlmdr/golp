@@ -3,8 +3,8 @@ package main
 import (
 	"bufio"
 	"io"
-	"reflect"
 	"os"
+	"reflect"
 )
 
 func readLine(scanner *bufio.Scanner) error {
