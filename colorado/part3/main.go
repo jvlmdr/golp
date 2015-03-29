@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/jackvalmadre/golp/lp"
-
 	"flag"
 	"fmt"
 	"log"
 	"math"
 	"os"
+
+	"github.com/jvlmdr/golp/lp"
 )
 
 func main() {

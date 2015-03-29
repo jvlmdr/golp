@@ -1,13 +1,13 @@
 package main
 
 import (
-	"github.com/jackvalmadre/golp/lp"
-
 	"bufio"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/jvlmdr/golp/lp"
 )
 
 // The result of trying to pivot.
