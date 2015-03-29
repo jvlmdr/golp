@@ -1,7 +1,5 @@
 package lp
 
-import "log"
-
 // Carries an ordinary primal dictionary to solution.
 // Assumes that initial dictionary is feasible.
 func Solve(dict *Dict) (final *Dict, unbnd bool) {
@@ -25,7 +23,7 @@ func SolveEps(dict *Dict, eps float64) (final *Dict, unbnd bool) {
 		}
 		dict = dict.Pivot(piv.Enter, piv.Leave)
 		iter++
-		log.Printf("%4d  f:%10.3e\n", iter, dict.Obj())
+		//log.Printf("%4d  f:%10.3e\n", iter, dict.Obj())
 	}
 }
 
@@ -55,7 +53,7 @@ func SolveFeasEps(orig *Dict, eps float64) (feas *Dict, infeas bool) {
 		}
 		dict = dict.Pivot(piv.Enter, piv.Leave)
 		iter++
-		log.Printf("%4d  f:%10.3e\n", iter, dict.Obj())
+		//log.Printf("%4d  f:%10.3e\n", iter, dict.Obj())
 	}
 
 	// The gap to feasibility such that (A x - u 1 <= b).

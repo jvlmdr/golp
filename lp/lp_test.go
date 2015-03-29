@@ -6,7 +6,7 @@ import (
 	"github.com/jvlmdr/golp/lp"
 )
 
-func ExampleSolveInt() {
+func ExampleSolve() {
 	dict := lp.NewDict(3, 2)
 	dict.NonBasic = []int{0, 1}
 	dict.Basic = []int{2, 3, 4}
@@ -20,12 +20,12 @@ func ExampleSolveInt() {
 	dict.A[1], dict.B[1] = []float64{-3, -2}, 12
 	dict.A[2], dict.B[2] = []float64{-2, -3}, 12
 
-	dict, err := lp.SolveInt(dict)
-	if err != nil {
-		fmt.Print(err)
+	dict, unbnd := lp.Solve(dict)
+	if unbnd {
+		fmt.Print("unbounded")
 		return
 	}
 	fmt.Printf("%.6g at %.6g\n", dict.Obj(), dict.Soln()[:2])
 	// Output:
-	// 6 at [2 2]
+	// 7.4 at [1.8 2.8]
 }
