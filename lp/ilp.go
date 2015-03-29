@@ -24,9 +24,9 @@ func SolveIntEps(dict *Dict, eps float64) (final *Dict, err error) {
 		}
 	}
 
-	// Solve problem without integer constraints.
+	// Solve feasible problem without integer constraints.
 	var unbnd bool
-	dict, unbnd = SolveEps(dict, eps)
+	dict, unbnd = PivotToFinalEps(dict, eps)
 	if unbnd {
 		// Relaxation became unbounded.
 		return nil, fmt.Errorf("unbounded in primal")
@@ -40,7 +40,7 @@ func SolveIntEps(dict *Dict, eps float64) (final *Dict, err error) {
 		dict = dict.Dual()
 		log.Println("feasible?", dict.Feas())
 		var unbnd bool
-		dict, unbnd = SolveEps(dict, eps)
+		dict, unbnd = PivotToFinalEps(dict, eps)
 		if unbnd {
 			// Dual of relaxation became unbounded.
 			log.Println("unbounded in dual, infeasible in primal")

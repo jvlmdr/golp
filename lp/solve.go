@@ -1,12 +1,37 @@
 package lp
 
-// Solve carries a primal dictionary to solution.
-// Assumes that initial dictionary is feasible.
-func Solve(dict *Dict) (final *Dict, unbnd bool) {
+import "fmt"
+
+// Solve solves a linear program.
+func Solve(dict *Dict) (final *Dict, err error) {
 	return SolveEps(dict, DefaultEps)
 }
 
-func SolveEps(dict *Dict, eps float64) (final *Dict, unbnd bool) {
+func SolveEps(dict *Dict, eps float64) (final *Dict, err error) {
+	if !dict.Feas() {
+		// If the solution associated with the dictionary is infeasible,
+		// attempt find a feasible dictionary.
+		var infeas bool
+		dict, infeas = SolveFeasEps(dict, eps)
+		if infeas {
+			return nil, fmt.Errorf("infeasible problem")
+		}
+	}
+	var unbnd bool
+	dict, unbnd = PivotToFinalEps(dict, eps)
+	if unbnd {
+		return nil, fmt.Errorf("unbounded problem")
+	}
+	return dict, nil
+}
+
+// PivotToFinal carries a feasible dictionary to solution.
+// Assumes that initial dictionary is feasible.
+func PivotToFinal(dict *Dict) (final *Dict, unbnd bool) {
+	return PivotToFinalEps(dict, DefaultEps)
+}
+
+func PivotToFinalEps(dict *Dict, eps float64) (final *Dict, unbnd bool) {
 	if !dict.Feas() {
 		panic("initial dictionary infeasible")
 	}
