@@ -1,9 +1,26 @@
 package lp
 
-import "log"
-
 var DefaultEps = 1e-9
 
+// Dict is a "dictionary" describing a linear program.
+// The simplex algorithm moves from dictionary to dictionary.
+// The problem is
+//	max {D + sum_i C[i] x[NonBasic[i]]}
+//	s.t. x[NonBasic[i]] >= 0
+//	     x[Basic[i]] = B[j] + sum_j A[i][j] x[NonBasic[i]] >= 0.
+// The variables are partitioned into basic and non-basic sets.
+// The objective and the basic variables are affine functions
+// of the non-basic variables.
+// All variables are constrained to be greater than zero.
+// The number of basic variables is the number of affine inequalities.
+//
+// Each dictionary is associated with the "solution"
+// where all of its non-basic variables are zero.
+// Note that this is not necessarily the maximizer or even feasible.
+//
+// A dictionary is feasible if all B[i] >= 0
+// since this implies that if all non-basic variables are zero,
+// then all non-basic variables are non-negative.
 type Dict struct {
 	Basic    []int
 	NonBasic []int
@@ -15,7 +32,7 @@ type Dict struct {
 	D float64
 }
 
-// Creates a dictionary with m basic and n non-basic variables.
+// NewDict creates a dictionary with m basic and n non-basic variables.
 func NewDict(m, n int) *Dict {
 	d := new(Dict)
 	d.Basic = make([]int, m)
@@ -29,25 +46,25 @@ func NewDict(m, n int) *Dict {
 	return d
 }
 
-// Returns the solution associated with the dictionary.
-// The non-basic variables are zero.
+// Soln returns the solution associated with the dictionary.
+// This is the value of all variables when the non-basic variables are zero.
 func (dict *Dict) Soln() []float64 {
-	n := len(dict.Basic) + len(dict.NonBasic)
-	x := make([]float64, n)
+	p := len(dict.Basic) + len(dict.NonBasic)
+	x := make([]float64, p)
 	// Non-basic are all zero (default value).
 	// Therefore basic = b.
-	for _, idx := range dict.Basic {
-		x[idx] = dict.B[idx]
+	for i, j := range dict.Basic {
+		x[j] = dict.B[i]
 	}
 	return x
 }
 
-// Returns the objective value.
+// Obj returns the objective value associated with the solution of this dictionary.
 func (dict *Dict) Obj() float64 {
 	return dict.D
 }
 
-// Is the (solution associated with the) dictionary feasible?
+// Feas returns true if the (solution associated with the) dictionary is feasible.
 func (dict *Dict) Feas() bool {
 	return dict.FeasEps(DefaultEps)
 }
@@ -63,7 +80,7 @@ func (dict *Dict) FeasEps(eps float64) bool {
 	return true
 }
 
-// Swaps the non-basic variable to enter and the basic variable to leave.
+// Pivot swaps Basic[leave] and NonBasic[enter].
 func (src *Dict) Pivot(enter, leave int) *Dict {
 	m := len(src.Basic)
 	n := len(src.NonBasic)
@@ -73,14 +90,13 @@ func (src *Dict) Pivot(enter, leave int) *Dict {
 	copy(dst.Basic, src.Basic)
 	copy(dst.NonBasic, src.NonBasic)
 	// Swap variables to enter and leave.
-	dst.Basic[leave] = src.NonBasic[enter]
-	dst.NonBasic[enter] = src.Basic[leave]
+	dst.Basic[leave], dst.NonBasic[enter] = src.NonBasic[enter], src.Basic[leave]
 
-	log.Printf(
-		"pivot: enter %d, leave %d, obj coeff %.4g, basic coeff %.4g",
-		src.NonBasic[enter], src.Basic[leave],
-		src.C[enter], src.A[leave][enter],
-	)
+	//	log.Printf(
+	//		"pivot: enter %d, leave %d, obj coeff %.4g, basic coeff %.4g",
+	//		src.NonBasic[enter], src.Basic[leave],
+	//		src.C[enter], src.A[leave][enter],
+	//	)
 
 	// Update row of basic variable.
 	dst.B[leave] = -src.B[leave] / src.A[leave][enter]
@@ -119,9 +135,9 @@ func (src *Dict) Pivot(enter, leave int) *Dict {
 	return dst
 }
 
-// Creates a dictionary describing the feasibility problem.
-// Adds a variable with label 0 to the basic set,
-// then pivots it into the non-basic set.
+// ToFeasDict creates a dictionary describing the feasibility problem.
+// Adds a variable to the basic set, then pivots it into the non-basic set.
+// Assumes that Basic and NonBasic are indices from 0 to len(NonBasic)+len(Basic)-1.
 func ToFeasDict(infeas *Dict) *Dict {
 	m, n := len(infeas.Basic), len(infeas.NonBasic)
 	// Add a new non-basic variable.
@@ -130,12 +146,13 @@ func ToFeasDict(infeas *Dict) *Dict {
 	// Copy constraints.
 	copy(dict.Basic, infeas.Basic)
 	copy(dict.NonBasic, infeas.NonBasic)
+	dict.NonBasic[n] = m + n
 	for i := 0; i < m; i++ {
 		copy(dict.A[i], infeas.A[i])
 	}
 	copy(dict.B, infeas.B)
 
-	// Add new non-basic variable (with label 0) to all rows.
+	// Add new non-basic variable to all rows.
 	for i := 0; i < m; i++ {
 		dict.A[i][n] = 1
 	}
@@ -146,15 +163,15 @@ func ToFeasDict(infeas *Dict) *Dict {
 	return dict.Pivot(n, leave)
 }
 
-// Returns to original problem.
-// Removes the variable with label 0,
+// FromFeasDict returns to original problem.
+// Removes the variable with label len(NonBasic)+len(Basic)-1,
 // which must be in the non-basic set.
 func FromFeasDict(feas *Dict, orig *Dict) *Dict {
 	m, n := len(feas.Basic), len(feas.NonBasic)-1
 
 	// Remove extra variable.
 	// Must be non-basic.
-	zero, found := findZero(feas.NonBasic)
+	extra, found := find(m+n-1, feas.NonBasic)
 	if !found {
 		panic("extra variable not in non-basic set")
 	}
@@ -162,11 +179,11 @@ func FromFeasDict(feas *Dict, orig *Dict) *Dict {
 	dict := NewDict(m, n)
 	// Copy constraints.
 	copy(dict.Basic, feas.Basic)
-	copy(dict.NonBasic[:zero], feas.NonBasic[:zero])
-	copy(dict.NonBasic[zero:], feas.NonBasic[zero+1:])
+	copy(dict.NonBasic[:extra], feas.NonBasic[:extra])
+	copy(dict.NonBasic[extra:], feas.NonBasic[extra+1:])
 	for i := 0; i < m; i++ {
-		copy(dict.A[i][:zero], feas.A[i][:zero])
-		copy(dict.A[i][zero:], feas.A[i][zero+1:])
+		copy(dict.A[i][:extra], feas.A[i][:extra])
+		copy(dict.A[i][extra:], feas.A[i][extra+1:])
 	}
 	copy(dict.B, feas.B)
 

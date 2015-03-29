@@ -92,8 +92,9 @@ func NextFeasBland(dict *Dict) Pivot {
 }
 
 func NextFeasBlandEps(dict *Dict, eps float64) Pivot {
-	// First check if there is a variable with label 0 in the basic set.
-	zero, found := findZero(dict.Basic)
+	m, n := len(dict.Basic), len(dict.NonBasic)
+	// First check if there is a variable with label m+n-1 in the basic set.
+	zero, found := find(m+n-1, dict.Basic)
 	if found {
 		// If there is and it can leave the basic set, make this pivot.
 		enter, canLeave := toEnterFeasBland(dict, zero, eps)

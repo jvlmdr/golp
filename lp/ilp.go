@@ -79,7 +79,7 @@ func CutPlaneEps(orig *Dict, eps float64) *Dict {
 
 	// Add new rows and slack variables.
 	for i := range A {
-		dict.Basic[m+i] = m + n + 1 + i
+		dict.Basic[m+i] = m + n + i
 		dict.A[m+i] = A[i]
 		dict.B[m+i] = B[i]
 	}

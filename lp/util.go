@@ -28,9 +28,9 @@ func distInt(x float64) float64 {
 	return math.Min(x-math.Floor(x), math.Ceil(x)-x)
 }
 
-func findZero(labels []int) (idx int, found bool) {
+func find(x int, labels []int) (idx int, found bool) {
 	for i, lbl := range labels {
-		if lbl == 0 {
+		if lbl == x {
 			return i, true
 		}
 	}
